@@ -1,10 +1,10 @@
 import hashlib
-from flask import Flask, jsonify, make_response, request # Importing the Flask library and some helper functions
-import sqlite3 # Library for talking to our database
-from datetime import datetime # We'll be working with dates
+from flask import Flask, jsonify, make_response, request
+import sqlite3
+from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
-app = Flask(__name__) # Creating a new Flask app. This will help us create API endpoints hiding the complexity of writing network code!
+app = Flask(__name__)
 
 # This function returns a connection to the database which can be used to send SQL commands to the database
 def get_db_connection():
@@ -12,6 +12,7 @@ def get_db_connection():
   conn.row_factory = sqlite3.Row
   return conn
 
+# Endpoint for getting events, with optional date filtering
 @app.route('/events', methods=['GET'])
 def get_events():
     conn = get_db_connection()
@@ -38,7 +39,7 @@ def get_events():
     
     return jsonify(events_list)
 
-
+# Endpoint for creating a new user
 @app.route('/user', methods=['POST'])
 def create_user():
     # Extract email, username, and password from the JSON payload
@@ -75,6 +76,7 @@ def create_user():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Endpoint for user login
 @app.route('/user', methods=['GET'])
 def user_login():
     username = request.json.get('username')
@@ -107,6 +109,39 @@ def user_login():
     except Exception as e:
         print(e)
         return jsonify({'error': "Username not found"}), 500
+
+@app.route('/user', methods=['PUT'])
+def change_username_or_password():
+    return jsonify({'message': 'Alter user endpoint - to be implemented'}), 200
+
+@app.route('/user', methods=['DELETE'])
+def delete_user():
+    return jsonify({'message': 'Delete user endpoint - to be implemented'}), 200
+
+@app.route('/event', methods=['POST'])
+def create_event():
+    return jsonify({'message': 'Create event endpoint - to be implemented'}), 200
+
+@app.route('/emails', methods=['GET'])
+def get_emails():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Start with the base SQL query and fill emails list
+    query = 'SELECT email FROM Users'
+    params = []
+    cursor.execute(query, params)
+    emails = cursor.fetchall()
+    
+    # Convert the rows to dictionaries to make them serializable
+    emails_list = [dict(email) for email in emails]
+    conn.close()
+    
+    return jsonify(emails_list), 200
+
+@app.route('/award_ticket', methods=['POST'])
+def award_ticket():
+    return jsonify({'message': 'Award ticket endpoint - to be implemented'}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
