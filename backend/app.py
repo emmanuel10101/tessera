@@ -1,3 +1,4 @@
+import hashlib
 from flask import Flask, jsonify, make_response, request # Importing the Flask library and some helper functions
 import sqlite3 # Library for talking to our database
 from datetime import datetime # We'll be working with dates
@@ -50,7 +51,7 @@ def create_user():
         return jsonify({'error': 'All fields (email, username, and password) are required.'}), 400
 
     # Hash the password
-    hashed_password = generate_password_hash(password)
+    hashed_password = hashlib.sha256(password.encode()).hexdigest() # not using generate_password_hash here to test why its not matching
 
     try:
         conn = get_db_connection()
@@ -74,7 +75,6 @@ def create_user():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ------------------------------------------------------------------------------
 @app.route('/user', methods=['GET'])
 def user_login():
     username = request.json.get('username')
@@ -85,8 +85,7 @@ def user_login():
         return jsonify({'error': 'All fields (username and password) are required.'}), 400
 
     # Hash the password
-    print(password)
-    hashed_password_input = generate_password_hash(password)
+    hashed_password_input = hashlib.sha256(password.encode()).hexdigest() # not using generate_password_hash here to test why its not matching
 
     try:
         conn = get_db_connection()
@@ -94,24 +93,20 @@ def user_login():
         
         # Check if username exists
         cursor.execute('SELECT username FROM Users WHERE username = ?', (username,))
-        # does this return an error if no rows found?
 
         # Retrieve hashed password from the database
         cursor.execute('SELECT password_hash from Users WHERE username = ?',(username,))
         hash_from_db = cursor.fetchone()
 
         conn.close()
-        print(hash_from_db['password_hash'])
-        print(hashed_password_input)
-        if check_password_hash(hashed_password_input, hash_from_db['password_hash']):
+        if hashed_password_input == hash_from_db['password_hash']: # not using check_password_hash here to test why its not matching
             return jsonify({'message': 'Login successful'}), 200
         else:
-            print(check_password_hash(hashed_password_input, hash_from_db['password_hash']))
+            return jsonify({'error': 'Invalid password.'}), 401
 
-    except sqlite3.IntegrityError:
-        return jsonify({'error': 'Username does not exist.'}), 409
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(e)
+        return jsonify({'error': "Username not found"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
