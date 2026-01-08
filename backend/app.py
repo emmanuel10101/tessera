@@ -4,16 +4,9 @@ import sqlite3
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 CORS(app)
-limiter = Limiter(
-    app,
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"] # Default limits for all routes
-)
 
 # Returns a connection to the database which can be used to send SQL commands to the database
 def get_db_connection():
@@ -50,7 +43,6 @@ def get_events():
 
 # Endpoint for creating a new user
 @app.route('/users', methods=['POST'])
-@limiter.limit("5 per minute")
 def create_user():
     # Extract email, username, and password from the JSON payload
     email = request.json.get('email')
@@ -178,10 +170,6 @@ def delete_user():
     except Exception as e:
         print(e)
         return jsonify({'error': "you dont exist or sumn"}), 500
-
-@app.route('/events', methods=['POST'])
-def create_event():
-    return jsonify({'message': 'Create event endpoint - to be implemented'}), 200
 
 # Endpoint for getting all user emails
 @app.route('/emails', methods=['GET'])
