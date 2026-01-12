@@ -1,7 +1,7 @@
 import hashlib
 from flask import Flask, jsonify, make_response, request
 import sqlite3
-from datetime import datetime
+import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 
@@ -188,13 +188,49 @@ def get_emails():
     
     return jsonify(emails_list), 200
 
-@app.route('/events', methods=['POST'])
-def create_event():
-    return jsonify({'message': 'Create event endpoint - to be implemented'}), 200
-
+# Endpoint for awarding a user a ticket
 @app.route('/award_ticket', methods=['POST'])
 def award_ticket():
-    return jsonify({'message': 'Award ticket endpoint - to be implemented'}), 200
+    username = request.json.get('username')
+    event_id = request.json.get('event_id')
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Retrieve the user_id from the username
+        cursor.execute('SELECT user_id FROM Users WHERE username = ?', (username,))
+        user_id = cursor.fetchone()
+
+        cursor.execute('INSERT INTO Tickets (event_id, user_id, purchase_date, price) VALUES (?, ?, ?, ?)', 
+                       (event_id, user_id['user_id'], datetime.date.today(), 0.0))
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Ticket awarded successfully'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Endpoint for admins to create events
+@app.route('/events', methods=['POST'])
+def create_event():
+    name = request.json.get('name')
+    description = request.json.get('description')
+    date = request.json.get('date')
+    time = request.json.get('time')
+    location = request.json.get('location')
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO Events (name, description, date, time, location) VALUES (?, ?, ?, ?, ?)', 
+                       (name, description, date, time, location))
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Event created successfully'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
