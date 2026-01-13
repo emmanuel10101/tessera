@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Box, Image, Text, VStack, Heading, LinkBox, Button } from '@chakra-ui/react';
 import { Link } from 'react-router-dom';
 
-function EventCard({ id, name, date, location, imageUrl }) {
+function EventCard({ id, name, date, time, location, imageUrl }) {
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
     const updateTimer = () => {
-      const eventDate = new Date(date).getTime();
+      const eventDate = new Date(date + " " + time).getTime();
       const now = new Date().getTime();
       const distance = eventDate - now;
 
