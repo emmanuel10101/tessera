@@ -219,12 +219,13 @@ def create_event():
     date = request.json.get('date')
     time = request.json.get('time')
     location = request.json.get('location')
+    imageURL = request.json.get('imageURL')
 
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('INSERT INTO Events (name, description, date, time, location) VALUES (?, ?, ?, ?, ?)', 
-                       (name, description, date, time, location))
+        cursor.execute('INSERT INTO Events (name, description, date, time, location) VALUES (?, ?, ?, ?, ?, ?)', 
+                       (name, description, date, time, location, imageURL))
         conn.commit()
         conn.close()
 

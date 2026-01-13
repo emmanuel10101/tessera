@@ -22,7 +22,7 @@ function EventsPage() {
             name={event.name}
             date={event.date}
             location={event.location}
-            imageUrl={'https://i.imgur.com/E5Wjs.jpeg'} 
+            imageUrl={event.imageUrl} 
           />
         ))}
       </SimpleGrid>
