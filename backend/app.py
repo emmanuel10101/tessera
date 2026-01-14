@@ -1,12 +1,17 @@
 import hashlib
 from flask import Flask, jsonify, make_response, request
 import sqlite3
-import datetime
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
 
 app = Flask(__name__)
 CORS(app)
+app.config["JWT_SECRET_KEY"] = "shhhhh"
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=14)
+app.config["JWT_VERIFY_SUB"] = False
+jwt = JWTManager(app)
 
 # Returns a connection to the database which can be used to send SQL commands to the database
 def get_db_connection():
@@ -17,29 +22,38 @@ def get_db_connection():
 # Endpoint for getting events, with optional date filtering
 @app.route('/events', methods=['GET'])
 def get_events():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Start with the base SQL query
-    query = 'SELECT * FROM Events'
-    params = []
-    
-    # Check if the 'afterDate' parameter is provided in the query string
-    after_date = request.args.get('afterDate')
-    if after_date:
-        query += ' WHERE date > ?'
-        params.append(after_date)
-    
-    # Execute the query with or without the date filter
-    cursor.execute(query, params)
-    events = cursor.fetchall()
-    
-    # Convert the rows to dictionaries to make them serializable
-    events_list = [dict(event) for event in events]
-    
-    conn.close() # Close the database connection
-    
-    return jsonify(events_list)
+  conn = get_db_connection()
+  cursor = conn.cursor()
+  
+  # Start with the base SQL query
+  query = 'SELECT * FROM Events'
+  params = []
+  query_conditions = []
+  
+  # Check for the 'afterDate' filter
+  after_date = request.args.get('afterDate')
+  if after_date:
+      query_conditions.append('date > ?')
+      params.append(after_date)
+  # Check for the 'location' filter
+  location = request.args.get('location')
+  if location:
+      query_conditions.append('location = ?')
+      params.append(location)
+
+  # Add WHERE clause if conditions are present
+  if query_conditions:
+      query += ' WHERE ' + ' AND '.join(query_conditions)
+  
+  # Execute the query with the specified conditions
+  cursor.execute(query, params)
+  events = cursor.fetchall()
+  
+  # Convert the rows to dictionaries to make them serializable
+  events_list = [dict(event) for event in events]
+  conn.close()
+  
+  return jsonify(events_list)
 
 # Endpoint for creating a new user
 @app.route('/users', methods=['POST'])
@@ -55,7 +69,6 @@ def create_user():
 
     # Hash the password
     hashed_password = hashlib.sha256(password.encode()).hexdigest()
-
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -73,7 +86,7 @@ def create_user():
         return jsonify({'message': 'User created successfully', 'user_id': new_user_id['user_id']}), 201
 
     except sqlite3.IntegrityError:
-        return jsonify({'error': 'Username or email already exists.'}), 409
+        return jsonify({'error': 'An account with that username or email already exists.'}), 409
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -82,7 +95,6 @@ def create_user():
 def user_login():
     username = request.json.get('username')
     password = request.json.get('password')
-
     if not username or not password:
         return jsonify({'error': 'All fields (username and password) are required.'}), 400
 
@@ -93,58 +105,82 @@ def user_login():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Check if username exists
-        cursor.execute('SELECT username FROM Users WHERE username = ?', (username,))
+        # Retrieve hashed password, user_id, and admin status from the database
+        cursor.execute('SELECT password_hash, user_id, admin FROM Users WHERE username = ?', (username,))
+        user_data = cursor.fetchone()
+        if user_data is None:
+            conn.close()
+            return jsonify({'error': 'Username not found'}), 401
 
-        # Retrieve hashed password from the database
-        cursor.execute('SELECT password_hash from Users WHERE username = ?',(username,))
-        hash_from_db = cursor.fetchone()
-        conn.close()
-
-        # Not using check_password_hash here to test why its not matching
-        if hashed_password_input == hash_from_db['password_hash']:
-            return jsonify({'message': 'Login successful'}), 200
+        if hashed_password_input == user_data['password_hash']:
+            access_token = create_access_token(
+                identity=user_data['user_id'],
+                additional_claims={"admin": user_data['admin']})
+            conn.close()
+            print(user_data['user_id'])
+            print({"admin": user_data['admin']})
+            return jsonify(access_token=access_token), 200
         else:
+            conn.close()
             return jsonify({'error': 'Invalid password.'}), 401
 
     except Exception as e:
         print(e)
-        return jsonify({'error': "Username not found"}), 500
+        return jsonify({'error': "An error occurred during login"}), 500
 
 # Endpoint for changing user password
 @app.route('/users', methods=['PUT'])
+@jwt_required()
 def change_password():
-    username = request.json.get('username')
+    current_user_id = get_jwt_identity()
+    print(get_jwt_identity(), get_jwt())
+    old_password = request.json.get('old_password')
     new_password = request.json.get('new_password')
 
-    # Hash the new password
-    hashed_password_input = hashlib.sha256(new_password.encode()).hexdigest()
+    if not old_password or not new_password:
+        return jsonify({'error': 'old_password and new_password are required'}), 400
+
+    # Hash passwords
+    hashed_old = hashlib.sha256(old_password.encode()).hexdigest()
+    hashed_new = hashlib.sha256(new_password.encode()).hexdigest()
 
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Retrieve current password from the database
-        cursor.execute('SELECT password_hash from Users WHERE username = ?',(username,))
-        hash_from_db = cursor.fetchone()
+        # Get user data for the current user
+        cursor.execute('SELECT password_hash, username FROM Users WHERE user_id = ?', (current_user_id,))
+        user_data = cursor.fetchone()
 
-        if hashed_password_input == hash_from_db['password_hash']:
-            return jsonify({'error': 'New password matches current password'}), 400
-        else:
-            cursor.execute('UPDATE Users SET password_hash = ? WHERE username = ?',
-                           (hashed_password_input, username))
-            conn.commit()  # Commit the changes to the database
+        if user_data is None:
             conn.close()
-            return jsonify({'message': 'Password changed successfully'}), 201
+            return jsonify({'error': 'User not found'}), 404
+
+        # Verify old password
+        if hashed_old != user_data['password_hash']:
+            conn.close()
+            return jsonify({'error': 'Old password is incorrect'}), 400
+
+        # Check if new password is different
+        if hashed_new == user_data['password_hash']:
+            conn.close()
+            return jsonify({'error': 'New password cannot be the same as current password'}), 400
+
+        # Update password
+        cursor.execute('UPDATE Users SET password_hash = ? WHERE user_id = ?',
+                       (hashed_new, current_user_id))
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Password changed successfully'}), 200
 
     except Exception as e:
         print(e)
-        return jsonify({'error': "you dont exist or sumn"}), 500
+        return jsonify({'error': 'An error occurred while changing password'}), 500
 
 # Endpoint for deleting a user
 @app.route('/users', methods=['DELETE'])
 def delete_user():
-
     username = request.json.get('username')
     password = request.json.get('password')
 
@@ -212,24 +248,30 @@ def award_ticket():
         return jsonify({'error': str(e)}), 500
 
 # Endpoint for admins to create events
-@app.route('/events', methods=['POST'])
+@app.route('/admin/events', methods=['POST'])
+@jwt_required()
 def create_event():
     name = request.json.get('name')
     description = request.json.get('description')
     date = request.json.get('date')
     time = request.json.get('time')
     location = request.json.get('location')
-    imageURL = request.json.get('imageURL')
+    imageUrl = request.json.get('imageUrl')
+    current_user = get_jwt_identity()
+    claims = get_jwt()
+
+    if claims.get("admin") != 1:
+        return {"msg": "Admins only"}, 403
 
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('INSERT INTO Events (name, description, date, time, location) VALUES (?, ?, ?, ?, ?, ?)', 
-                       (name, description, date, time, location, imageURL))
+        cursor.execute('INSERT INTO Events (name, description, date, time, location, imageUrl) VALUES (?, ?, ?, ?, ?, ?)', 
+                       (name, description, date, time, location, imageUrl))
         conn.commit()
         conn.close()
-
-        return jsonify({'message': 'Event created successfully'}), 201
+        return jsonify(logged_in_as=current_user), 201
+        #return jsonify({'message': 'Event created successfully'}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -8,7 +8,8 @@ function EventsPage() {
 
   // Fill the events array with events from the backend
   useEffect(() => {
-    fetch('http://localhost:5000/events')
+    const today = new Date().toISOString().split('T')[0];
+    fetch(`http://localhost:5000/events?afterDate=${today}`)
       .then(response => response.json())
       .then(setEvents)
       .catch(error => console.error('Error fetching events:', error));
