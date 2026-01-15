@@ -1,7 +1,7 @@
 import hashlib
 from flask import Flask, jsonify, make_response, request
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
@@ -117,8 +117,6 @@ def user_login():
                 identity=user_data['user_id'],
                 additional_claims={"admin": user_data['admin']})
             conn.close()
-            print(user_data['user_id'])
-            print({"admin": user_data['admin']})
             return jsonify(access_token=access_token), 200
         else:
             conn.close()
@@ -133,9 +131,9 @@ def user_login():
 @jwt_required()
 def change_password():
     current_user_id = get_jwt_identity()
-    print(get_jwt_identity(), get_jwt())
     old_password = request.json.get('old_password')
     new_password = request.json.get('new_password')
+    print(current_user_id)
 
     if not old_password or not new_password:
         return jsonify({'error': 'old_password and new_password are required'}), 400
@@ -151,6 +149,7 @@ def change_password():
         # Get user data for the current user
         cursor.execute('SELECT password_hash, username FROM Users WHERE user_id = ?', (current_user_id,))
         user_data = cursor.fetchone()
+        print(user_data)
 
         if user_data is None:
             conn.close()
@@ -226,20 +225,17 @@ def get_emails():
 
 # Endpoint for awarding a user a ticket
 @app.route('/award_ticket', methods=['POST'])
+@jwt_required()
 def award_ticket():
-    username = request.json.get('username')
     event_id = request.json.get('event_id')
+    current_user = get_jwt_identity()
 
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Retrieve the user_id from the username
-        cursor.execute('SELECT user_id FROM Users WHERE username = ?', (username,))
-        user_id = cursor.fetchone()
-
         cursor.execute('INSERT INTO Tickets (event_id, user_id, purchase_date, price) VALUES (?, ?, ?, ?)', 
-                       (event_id, user_id['user_id'], datetime.date.today(), 0.0))
+                       (event_id, current_user, date.today(), 0.0))
         conn.commit()
         conn.close()
 
@@ -257,7 +253,6 @@ def create_event():
     time = request.json.get('time')
     location = request.json.get('location')
     imageUrl = request.json.get('imageUrl')
-    current_user = get_jwt_identity()
     claims = get_jwt()
 
     if claims.get("admin") != 1:
@@ -270,8 +265,7 @@ def create_event():
                        (name, description, date, time, location, imageUrl))
         conn.commit()
         conn.close()
-        return jsonify(logged_in_as=current_user), 201
-        #return jsonify({'message': 'Event created successfully'}), 201
+        return jsonify({'message': 'Event created successfully'}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
