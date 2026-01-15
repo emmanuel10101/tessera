@@ -91,7 +91,7 @@ def create_user():
         return jsonify({'error': str(e)}), 500
 
 # Endpoint for user login
-@app.route('/users/login', methods=['GET'])
+@app.route('/login', methods=['GET'])
 def user_login():
     username = request.json.get('username')
     password = request.json.get('password')

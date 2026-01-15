@@ -1,17 +1,21 @@
 import React from 'react';
 import { Box, Flex, Text, Button, Spacer } from '@chakra-ui/react';
 import { MoonIcon } from '@chakra-ui/icons'
+import { useNavigate } from 'react-router-dom';
 
 function Navbar() {
+  const navigate = useNavigate();
+
   return (
-    <Flex bg="purple.500" color="white" p="4" alignItems="center">
-      <Box p="2">
+    <Flex bg="#9E58C6" color="blackAlpa" p='11' alignItems="center">
+      <Button colorScheme="blackAlpha" variant='ghost'
+              onClick={() => navigate('/events')} p='2' pt='5' cursor="pointer">
         <Text fontSize="xl" fontWeight="bold">Tessera Events</Text>
-      </Box>
+      </Button>
       <Spacer />
-      <Button variant='outline'> <MoonIcon color='white'/> </Button>
+      <Button colorScheme="blackAlpha" variant='ghost'> <MoonIcon color='blackAlpha'/> </Button>
       <Box>
-        <Button colorScheme="white" variant="outline">Profile</Button>
+        <Button colorScheme="blackAlpha" variant='ghost'>Profile</Button>
       </Box>
     </Flex>
   );
