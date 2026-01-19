@@ -91,7 +91,7 @@ def create_user():
         return jsonify({'error': str(e)}), 500
 
 # Endpoint for user login
-@app.route('/login', methods=['GET'])
+@app.route('/login', methods=['POST'])
 def user_login():
     username = request.json.get('username')
     password = request.json.get('password')
@@ -240,6 +240,37 @@ def award_ticket():
         conn.close()
 
         return jsonify({'message': 'Ticket awarded successfully'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Endpoint for getting all tickets for the current user
+@app.route('/profile', methods=['GET'])
+@jwt_required()
+def get_user_tickets():
+    current_user_id = get_jwt_identity()
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get all tickets for the current user with event details
+        cursor.execute('''
+            SELECT t.ticket_id, t.event_id, t.purchase_date, t.price, 
+                   e.name, e.date, e.time, e.location, e.description, e.imageUrl
+            FROM Tickets t
+            JOIN Events e ON t.event_id = e.event_id
+            WHERE t.user_id = ?
+            ORDER BY e.date
+        ''', (current_user_id,))
+        
+        tickets = cursor.fetchall()
+        conn.close()
+        
+        # Convert rows to dictionaries
+        tickets_list = [dict(ticket) for ticket in tickets]
+        
+        return jsonify(tickets_list), 200
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

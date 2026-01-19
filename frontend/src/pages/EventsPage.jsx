@@ -5,6 +5,7 @@ import EventCard from '../components/EventCard';
 
 function EventsPage() {
   const [events, setEvents] = useState([]);
+  const [searchInput, setSearchInput] = useState('');
 
   // Fill the events array with events from the backend
   useEffect(() => {
@@ -15,13 +16,24 @@ function EventsPage() {
       .catch(error => console.error('Error fetching events:', error));
   }, []);
 
+  // Filter events based on search input
+  const filteredEvents = events.filter(event =>
+    event.name.toLowerCase().includes(searchInput.toLowerCase())
+  );
+
   return (
     <Container maxW="container.xl" centerContent>
-      <Input placeholder='Search Bar' htmlSize={40} width='auto'/>
+      <Input 
+        placeholder='Search Events' 
+        htmlSize={40}
+        width='auto'
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        mb={5}
+      />
       <SimpleGrid columns={{ sm: 1, md: 2, lg: 3 }} spacing={10} py={5}>
-        {events.map(event => (
+        {filteredEvents.map(event => (
           <EventCard
-            key={event.event_id}
             id={event.event_id}
             name={event.name}
             date={event.date}
