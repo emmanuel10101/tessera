@@ -55,6 +55,57 @@ def get_events():
   
   return jsonify(events_list)
 
+# Endpoint for getting seat availability for an event
+@app.route('/events/<int:event_id>/seats', methods=['GET'])
+def get_event_seats(event_id):
+  try:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Get all available tickets for the event
+    cursor.execute('''
+      SELECT rowName, seatNumber, status
+      FROM Tickets
+      WHERE event_id = ?
+      ORDER BY rowName, seatNumber
+    ''', (event_id,))
+    
+    available_tickets = cursor.fetchall()
+    
+    # Get all sold tickets for the event
+    cursor.execute('''
+      SELECT rowName, seatNumber
+      FROM TicketSales
+      WHERE event_id = ?
+      ORDER BY rowName, seatNumber
+    ''', (event_id,))
+    
+    sold_seats = cursor.fetchall()
+    conn.close()
+    
+    # Convert sold seats to a set for quick lookup
+    sold_set = set((dict(seat)['rowName'], dict(seat)['seatNumber']) for seat in sold_seats)
+    
+    # Organize seats by row
+    seats_by_row = {}
+    for ticket in available_tickets:
+      row = ticket['rowName']
+      seat_num = ticket['seatNumber']
+      is_sold = (row, seat_num) in sold_set
+      
+      if row not in seats_by_row:
+        seats_by_row[row] = []
+      
+      seats_by_row[row].append({
+        'seatNumber': seat_num,
+        'status': 'SOLD' if is_sold else 'AVAILABLE'
+      })
+    
+    return jsonify(seats_by_row), 200
+    
+  except Exception as e:
+    return jsonify({'error': str(e)}), 500
+
 # Endpoint for creating a new user
 @app.route('/users', methods=['POST'])
 def create_user():
@@ -223,6 +274,60 @@ def get_emails():
     
     return jsonify(emails_list), 200
 
+# Endpoint for reserving seats before payment
+@app.route('/reserve_seats', methods=['POST'])
+@jwt_required()
+def reserve_seats():
+    event_id = request.json.get('event_id')
+    seats = request.json.get('seats')  # List of {rowName, seatNumber} objects
+
+    if not event_id or not seats or not isinstance(seats, list):
+        return jsonify({'error': 'event_id and seats list are required'}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Reserve each seat by updating its status to RESERVED
+        for seat in seats:
+            row_name = seat.get('rowName')
+            seat_number = seat.get('seatNumber')
+            
+            if not row_name or seat_number is None:
+                conn.close()
+                return jsonify({'error': 'Invalid seat format. rowName and seatNumber are required'}), 400
+
+            # Check if seat is already reserved or sold
+            cursor.execute('''
+                SELECT status FROM Tickets 
+                WHERE event_id = ? AND rowName = ? AND seatNumber = ?
+            ''', (event_id, row_name, seat_number))
+            
+            existing_ticket = cursor.fetchone()
+            
+            if not existing_ticket:
+                conn.close()
+                return jsonify({'error': f'Seat {row_name}{seat_number} does not exist'}), 404
+            
+            if existing_ticket['status'] != 'AVAILABLE':
+                conn.close()
+                return jsonify({'error': f'Seat {row_name}{seat_number} is not available'}), 400
+
+            # Update the seat status to RESERVED
+            cursor.execute('''
+                UPDATE Tickets 
+                SET status = 'RESERVED' 
+                WHERE event_id = ? AND rowName = ? AND seatNumber = ?
+            ''', (event_id, row_name, seat_number))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': f'{len(seats)} seats reserved successfully'}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # Endpoint for awarding a user a ticket
 @app.route('/award_ticket', methods=['POST'])
 @jwt_required()
@@ -253,13 +358,13 @@ def get_user_tickets():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get all tickets for the current user with event details
+        # Get all ticket sales for the current user with event details
         cursor.execute('''
-            SELECT t.ticket_id, t.event_id, t.purchase_date, t.price, 
+            SELECT ts.id, ts.event_id, ts.rowName, ts.seatNumber, ts.barcode, ts.purchasedAt, 
                    e.name, e.date, e.time, e.location, e.description, e.imageUrl
-            FROM Tickets t
-            JOIN Events e ON t.event_id = e.event_id
-            WHERE t.user_id = ?
+            FROM TicketSales ts
+            JOIN Events e ON ts.event_id = e.event_id
+            WHERE ts.userId = ?
             ORDER BY e.date
         ''', (current_user_id,))
         
@@ -297,6 +402,70 @@ def create_event():
         conn.commit()
         conn.close()
         return jsonify({'message': 'Event created successfully'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Endpoint for purchasing reserved seats
+@app.route('/purchase_seats', methods=['POST'])
+@jwt_required()
+def purchase_seats():
+    current_user_id = get_jwt_identity()
+    event_id = request.json.get('event_id')
+    seats = request.json.get('seats')  # List of {rowName, seatNumber} objects
+
+    if not event_id or not seats or not isinstance(seats, list):
+        return jsonify({'error': 'event_id and seats list are required'}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Process each seat
+        for seat in seats:
+            row_name = seat.get('rowName')
+            seat_number = seat.get('seatNumber')
+            
+            if not row_name or seat_number is None:
+                conn.close()
+                return jsonify({'error': 'Invalid seat format. rowName and seatNumber are required'}), 400
+
+            # Check if seat is RESERVED
+            cursor.execute('''
+                SELECT status FROM Tickets 
+                WHERE event_id = ? AND rowName = ? AND seatNumber = ?
+            ''', (event_id, row_name, seat_number))
+            
+            existing_ticket = cursor.fetchone()
+            
+            if not existing_ticket:
+                conn.close()
+                return jsonify({'error': f'Seat {row_name}{seat_number} does not exist'}), 404
+            
+            if existing_ticket['status'] != 'RESERVED':
+                conn.close()
+                return jsonify({'error': f'Seat {row_name}{seat_number} is not reserved'}), 400
+
+            # Generate barcode (event_id + row + seat number)
+            barcode = f'{event_id}{row_name}{seat_number}'
+
+            # Create entry in TicketSales
+            cursor.execute('''
+                INSERT INTO TicketSales (event_id, rowName, seatNumber, userId, barcode, purchasedAt)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (event_id, row_name, seat_number, current_user_id, barcode, datetime.now()))
+
+            # Update the ticket status to SOLD
+            cursor.execute('''
+                UPDATE Tickets 
+                SET status = 'SOLD'
+                WHERE event_id = ? AND rowName = ? AND seatNumber = ?
+            ''', (event_id, row_name, seat_number))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': f'{len(seats)} seats purchased successfully'}), 200
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
