@@ -102,29 +102,6 @@ tessera/
    - Open your browser and navigate to the frontend URL
    - Sign up for a new account or log in with existing credentials
 
-## API Endpoints
-
-### Authentication
-- `POST /users` - Create a new user account
-- `POST /login` - User login (returns JWT token)
-- `PUT /users` - Change password (requires authentication)
-- `DELETE /users` - Delete user account
-
-### Events
-- `GET /events` - Get all events (supports `?afterDate=YYYY-MM-DD` and `?location=...` filters)
-- `GET /events/<id>/seats` - Get seat availability for an event
-- `GET /events/<id>/seats-with-prices` - Get seats with pricing information
-- `POST /admin/events` - Create a new event (admin only)
-
-### Tickets
-- `POST /reserve_seats` - Reserve seats before purchase (requires authentication)
-- `POST /purchase_seats` - Purchase reserved seats (requires authentication)
-- `GET /profile` - Get all tickets for the current user (requires authentication)
-- `POST /award_ticket` - Award a free ticket to a user (requires authentication)
-
-### Other
-- `GET /emails` - Get all user emails
-
 ## Database
 
 The application uses SQLite with the following main tables:
