@@ -2,7 +2,7 @@
 
 A modern event ticketing platform built with React and Flask, featuring interactive seat selection, user authentication, and ticket management.
 
-## 🎯 Features
+## Features
 
 - **Event Browsing**: Browse and search upcoming events with filtering by date and location
 - **Interactive Seat Selection**: Visual seat picker with real-time availability and pricing
@@ -12,7 +12,7 @@ A modern event ticketing platform built with React and Flask, featuring interact
 - **Admin Features**: Create and manage events (admin-only endpoints)
 - **Real-time Availability**: Live seat status updates (Available, Reserved, Sold)
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
 - **React 18** - UI library
@@ -27,7 +27,7 @@ A modern event ticketing platform built with React and Flask, featuring interact
 - **Flask-JWT-Extended** - JWT authentication
 - **Flask-CORS** - Cross-origin resource sharing
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 tessera/
@@ -47,7 +47,7 @@ tessera/
 └── README.md
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -102,7 +102,7 @@ tessera/
    - Open your browser and navigate to the frontend URL
    - Sign up for a new account or log in with existing credentials
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### Authentication
 - `POST /users` - Create a new user account
@@ -125,7 +125,7 @@ tessera/
 ### Other
 - `GET /emails` - Get all user emails
 
-## 🗄️ Database
+## Database
 
 The application uses SQLite with the following main tables:
 - **Users** - User accounts and authentication
@@ -150,14 +150,14 @@ Follow the prompts to:
 
 The script will create the event and generate tickets with a default price tier.
 
-## 🔐 Authentication
+## Authentication
 
 The application uses JWT (JSON Web Tokens) for authentication:
 - Tokens expire after 14 days
 - Include the token in the `Authorization` header: `Bearer <token>`
 - Tokens are stored in `localStorage` on the frontend
 
-## 🎨 Frontend Features
+## Frontend Features
 
 - **Responsive Design**: Works on desktop and mobile devices
 - **Event Search**: Filter events by name
@@ -166,14 +166,14 @@ The application uses JWT (JSON Web Tokens) for authentication:
 - **Price Calculation**: Real-time total price calculation
 - **Protected Routes**: Login required for ticket purchase and profile access
 
-## 🛡️ Security Notes
+## Security Notes
 
 - Passwords are hashed using SHA-256
 - JWT tokens are used for secure API authentication
 - Admin endpoints require admin privileges
 - CORS is enabled for cross-origin requests
 
-## 📝 Development
+## Development
 
 ### Building for Production
 
