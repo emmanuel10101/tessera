@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Heading, Text, Button, Spinner, Box } from '@chakra-ui/react';
+const BASE_URL = process.env.REACT_APP_BASE_URL;
 
 function EventDetail() {
   const { id } = useParams();
@@ -9,6 +10,7 @@ function EventDetail() {
   const [seats, setSeats] = useState({});
   const [selected, setSelected] = useState([]);
   const [loading, setLoading] = useState(true);
+  const BASE_URL = process.env.REACT_APP_BASE_URL;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -19,12 +21,12 @@ function EventDetail() {
       }
 
       try {
-        const eventRes = await fetch(`http://localhost:5000/events`);
+        const eventRes = await fetch(`${BASE_URL}/events`);
         const events = await eventRes.json();
         const eventData = events.find(e => e.event_id === parseInt(id));
         setEvent(eventData);
 
-        const seatsRes = await fetch(`http://localhost:5000/events/${id}/seats-with-prices`);
+        const seatsRes = await fetch(`${BASE_URL}/events/${id}/seats-with-prices`);
         const seatsData = await seatsRes.json();
         setSeats(seatsData);
         setLoading(false);
@@ -47,7 +49,7 @@ function EventDetail() {
 
     const token = localStorage.getItem('access_token');
     try {
-      await fetch('http://localhost:5000/reserve_seats', {
+      await fetch(`${BASE_URL}/reserve_seats`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,7 +90,7 @@ function EventDetail() {
     });
 
     try {
-      const res = await fetch('http://localhost:5000/purchase_seats', {
+      const res = await fetch(`${BASE_URL}/purchase_seats`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

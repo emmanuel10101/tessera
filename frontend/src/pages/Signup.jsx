@@ -18,6 +18,7 @@ function App() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const BASE_URL = process.env.REACT_APP_BASE_URL;
 
   const handleSignUp = async (e) => {
     e.preventDefault();
@@ -32,7 +33,7 @@ function App() {
 
     try {
       // Create user in database
-      const createUserResponse = await fetch('http://localhost:5000/users', {
+      const createUserResponse = await fetch(`${BASE_URL}/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -53,7 +54,7 @@ function App() {
       }
 
       // Automatically login the user
-      const loginResponse = await fetch('http://localhost:5000/login', {
+      const loginResponse = await fetch(`${BASE_URL}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

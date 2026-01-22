@@ -6,11 +6,12 @@ import EventCard from '../components/EventCard';
 function EventsPage() {
   const [events, setEvents] = useState([]);
   const [searchInput, setSearchInput] = useState('');
+  const BASE_URL = process.env.REACT_APP_BASE_URL;
 
   // Fill the events array with events from the backend
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
-    fetch(`http://localhost:5000/events?afterDate=${today}`)
+    fetch(`${BASE_URL}/events?afterDate=${today}`)
       .then(response => response.json())
       .then(setEvents)
       .catch(error => console.error('Error fetching events:', error));

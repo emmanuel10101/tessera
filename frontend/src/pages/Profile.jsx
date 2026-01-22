@@ -8,6 +8,7 @@ function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const BASE_URL = process.env.REACT_APP_BASE_URL;
 
   useEffect(() => {
     const fetchTickets = async () => {
@@ -19,7 +20,7 @@ function Profile() {
       }
 
       try {
-        const response = await fetch('http://localhost:5000/profile', {
+        const response = await fetch(`${BASE_URL}/profile`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',

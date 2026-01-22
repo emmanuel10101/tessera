@@ -1,14 +1,24 @@
 import hashlib
+import os
 from flask import Flask, jsonify, make_response, request
 import sqlite3
 from datetime import datetime, timedelta, date
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
-app.config["JWT_SECRET_KEY"] = "shhhhh"
+# CORS(
+#     app,
+#     resources={r"/*": {"origins": "*"}},
+#     supports_credentials=True
+# )
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=14)
 app.config["JWT_VERIFY_SUB"] = False
 jwt = JWTManager(app)
@@ -104,7 +114,7 @@ def get_event_seats(event_id):
     return jsonify(seats_by_row), 200
     
   except Exception as e:
-    return jsonify({'error': str(e)}), 500
+    return jsonify({'error': str(e)}), 00
 
 # Endpoint for getting seat availability with prices for an event
 @app.route('/events/<int:event_id>/seats-with-prices', methods=['GET'])
@@ -522,4 +532,4 @@ def purchase_seats():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(port=8080, debug=True)
