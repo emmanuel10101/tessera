@@ -106,6 +106,58 @@ def get_event_seats(event_id):
   except Exception as e:
     return jsonify({'error': str(e)}), 500
 
+# Endpoint for getting seat availability with prices for an event
+@app.route('/events/<int:event_id>/seats-with-prices', methods=['GET'])
+def get_event_seats_with_prices(event_id):
+  try:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Get all tickets with their price tier information
+    cursor.execute('''
+      SELECT t.rowName, t.seatNumber, t.status, pt.priceCents
+      FROM Tickets t
+      JOIN PriceTiers pt ON t.priceTierId = pt.id
+      WHERE t.event_id = ?
+      ORDER BY t.rowName, t.seatNumber
+    ''', (event_id,))
+    
+    tickets = cursor.fetchall()
+    
+    # Get all sold tickets to mark them as SOLD
+    cursor.execute('''
+      SELECT rowName, seatNumber
+      FROM TicketSales
+      WHERE event_id = ?
+    ''', (event_id,))
+    
+    sold_seats = cursor.fetchall()
+    conn.close()
+    
+    # Convert sold seats to a set
+    sold_set = set((dict(seat)['rowName'], dict(seat)['seatNumber']) for seat in sold_seats)
+    
+    # Organize seats by row with prices
+    seats_by_row = {}
+    for ticket in tickets:
+      row = ticket['rowName']
+      seat_num = ticket['seatNumber']
+      is_sold = (row, seat_num) in sold_set
+      
+      if row not in seats_by_row:
+        seats_by_row[row] = []
+      
+      seats_by_row[row].append({
+        'seatNumber': seat_num,
+        'status': 'SOLD' if is_sold else ticket['status'],
+        'priceCents': ticket['priceCents']
+      })
+    
+    return jsonify(seats_by_row), 200
+    
+  except Exception as e:
+    return jsonify({'error': str(e)}), 500
+
 # Endpoint for creating a new user
 @app.route('/users', methods=['POST'])
 def create_user():

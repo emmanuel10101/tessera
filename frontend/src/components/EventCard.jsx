@@ -1,9 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Image, Text, VStack, Heading, LinkBox, Button } from '@chakra-ui/react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 function EventCard({ id, name, date, time, location, imageUrl }) {
   const [timeLeft, setTimeLeft] = useState('');
+  const navigate = useNavigate();
+
+  const handleBuyTickets = () => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      navigate(`/events/${id}`);
+    } else {
+      navigate('/login');
+    }
+  };
 
   useEffect(() => {
     const updateTimer = () => {
@@ -43,7 +53,7 @@ function EventCard({ id, name, date, time, location, imageUrl }) {
           <Text fontSize="sm">Date: {date}</Text>
           <Text fontSize="sm">Location: {location}</Text>
           <Text fontSize="sm" color="red.500">{timeLeft}</Text>
-          <Button colorScheme="blue" mt="4" as={Link} to={`/events/${id}`}>
+          <Button colorScheme="teal" mt="4" onClick={handleBuyTickets}>
             Buy Tickets!
           </Button>
         </VStack>

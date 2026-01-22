@@ -91,19 +91,31 @@ function Profile() {
             </Button>
           </Box>
         ) : (
-          <SimpleGrid columns={{ sm: 1, md: 2, lg: 3 }} spacing={10} width="100%">
+          <VStack spacing={3} width="100%">
             {tickets.map(ticket => (
-              <EventCard
-                key={ticket.ticket_id}
-                id={ticket.event_id}
-                name={ticket.name}
-                date={ticket.date}
-                time={ticket.time}
-                location={ticket.location}
-                imageUrl={ticket.imageUrl}
-              />
+              <Box key={ticket.id} borderWidth="1px" borderRadius="md" p={3} width="100%">
+                {ticket.imageUrl && (
+                  <Box mb={2} width="100%" maxHeight="120px" overflow="hidden" borderRadius="md">
+                    <img src={ticket.imageUrl} alt={ticket.name} style={{ width: '100%', objectFit: 'cover' }} />
+                  </Box>
+                )}
+                <Heading size="sm" mb={2}>{ticket.name}</Heading>
+                
+                <VStack align="start" spacing={1} mb={2} fontSize="sm">
+                  <Text><strong>Date:</strong> {ticket.date}</Text>
+                  <Text><strong>Time:</strong> {ticket.time}</Text>
+                  <Text><strong>Location:</strong> {ticket.location}</Text>
+                </VStack>
+
+                <Box bg="gray.100" p={2} borderRadius="md" mb={2}>
+                  <Heading size="xs" mb={1}>Your Seat</Heading>
+                  <Text fontSize="sm"><strong>Row {ticket.rowName}, Seat {ticket.seatNumber}</strong></Text>
+                  <Text fontSize="xs" color="gray.600">Barcode: {ticket.barcode}</Text>
+                  <Text fontSize="xs" color="gray.600">Purchased: {new Date(ticket.purchasedAt).toLocaleDateString()}</Text>
+                </Box>
+              </Box>
             ))}
-          </SimpleGrid>
+          </VStack>
         )}
       </VStack>
     </Container>
